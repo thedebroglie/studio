@@ -27,7 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 
 const formSchema = z.object({
   candidateName: z.string().min(2, { message: 'Candidate name is required.' }),
@@ -43,6 +43,7 @@ export function InstantVerificationForm() {
   const [result, setResult] =
     useState<InstantVerificationConfidenceScoreOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -58,14 +59,46 @@ export function InstantVerificationForm() {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setIsVerified(false);
     try {
       const response = await instantVerificationConfidenceScore(values);
       setResult(response);
+      if (response.confidenceScore > 0.9) {
+        setIsVerified(true);
+      }
     } catch (e) {
       setError('An error occurred during verification. Please try again.');
       console.error(e);
     }
     setIsLoading(false);
+  }
+
+  function recheck() {
+    setIsVerified(false);
+    setResult(null);
+    form.reset();
+  }
+
+  if (isVerified && result) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="text-center">
+          <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+          <CardTitle className="mt-4 text-2xl">Verification Successful</CardTitle>
+          <CardDescription>The credential has been verified.</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center">
+          <p className="text-lg font-semibold">{form.getValues('candidateName')}</p>
+          <p className="text-sm text-muted-foreground">
+            Confidence Score: {Math.round(result.confidenceScore * 100)}%
+          </p>
+          <Button onClick={recheck} className="mt-6 w-full">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Verify Another Credential
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -153,7 +186,7 @@ export function InstantVerificationForm() {
             </CardContent>
           </Card>
         )}
-        {result && (
+        {result && !isVerified && (
           <Card className="bg-card">
             <CardHeader>
               <CardTitle>
